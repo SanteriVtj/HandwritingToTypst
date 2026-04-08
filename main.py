@@ -62,7 +62,6 @@ def main(input_dir, output_file, model, host, prompt, list_models):
     img_extensions = ('.png', '.jpg', '.jpeg', '.webp')
     pdf_extension = '.pdf'
     all_extensions = img_extensions + (pdf_extension,)
-    
     file_paths = sorted([
         p for p in Path(input_dir).iterdir() 
         if p.suffix.lower() in all_extensions
@@ -72,17 +71,35 @@ def main(input_dir, output_file, model, host, prompt, list_models):
         click.echo(f"No supported files (images or PDFs) found in {input_dir}")
         return
 
-    default_prompt = (
-        "You are an expert OCR and Typst formatter. "
-        "Convert the following handwritten note into clean Typst markup. "
-        "Focus on maintaining the structure, equations, and formatting. "
-        "Return ONLY the Typst code, NO markdown blocks, NO preamble, and NO explanation."
-    )
+    # Handle format detection
+    output_ext = Path(output_file).suffix.lower()
+    is_latex = output_ext == '.tex'
+    format_name = "LaTeX" if is_latex else "Typst"
+    
+    if not is_latex and output_ext != '.typ':
+        click.echo(f"Warning: Output extension '{output_ext}' not recognized. Defaulting to Typst formatting.")
+
+    if is_latex:
+        default_prompt = (
+            "You are an expert OCR and LaTeX formatter. "
+            "Convert the following handwritten note into clean LaTeX markup. "
+            "Focus on equations, structure, and text. "
+            "Return ONLY the LaTeX code that goes BETWEEN \\begin{document} and \\end{document}. "
+            "Do NOT include the preamble, document environment, or markdown blocks."
+        )
+    else:
+        default_prompt = (
+            "You are an expert OCR and Typst formatter. "
+            "Convert the following handwritten note into clean Typst markup. "
+            "Focus on equations, structure, and text. "
+            "Return ONLY the Typst code, NO markdown blocks, NO preamble, and NO explanation."
+        )
     
     final_prompt = prompt if prompt else default_prompt
-    
+    click.echo(f"Format: {format_name}")
     click.echo(f"Found {len(file_paths)} files. Starting conversion using model '{model}'...")
     
+    first_page = True
     for file_path in file_paths:
         if file_path.suffix.lower() == pdf_extension:
             try:
@@ -95,6 +112,10 @@ def main(input_dir, output_file, model, host, prompt, list_models):
                     
                     # Open, append, and close for every page
                     with open(output_file, 'a', encoding='utf-8') as f:
+                        if is_latex and first_page:
+                            f.write("% Required dependencies for this document:\n")
+                            f.write("% \\usepackage{amsmath, amssymb, amsfonts, graphicx, float}\n\n")
+                            first_page = False
                         f.write(result + "\n")
                 doc.close()
             except Exception as e:
@@ -103,6 +124,10 @@ def main(input_dir, output_file, model, host, prompt, list_models):
             # Standard image
             result = process_content(client, model, final_prompt, [str(file_path)], file_path.name)
             with open(output_file, 'a', encoding='utf-8') as f:
+                if is_latex and first_page:
+                    f.write("% Required dependencies for this document:\n")
+                    f.write("% \\usepackage{amsmath, amssymb, amsfonts, graphicx, float}\n\n")
+                    first_page = False
                 f.write(result + "\n")
     
     click.echo(f"\nSuccessfully created {output_file}")
