@@ -80,7 +80,6 @@ def main(input_dir, output_file, model, host, prompt, list_models):
     )
     
     final_prompt = prompt if prompt else default_prompt
-    typst_content = []
     
     click.echo(f"Found {len(file_paths)} files. Starting conversion using model '{model}'...")
     
@@ -93,18 +92,18 @@ def main(input_dir, output_file, model, host, prompt, list_models):
                     pix = page.get_pixmap()
                     img_bytes = pix.tobytes("png")
                     result = process_content(client, model, final_prompt, [img_bytes], file_path.name, page_num + 1)
-                    typst_content.append(result)
+                    
+                    # Open, append, and close for every page
+                    with open(output_file, 'a', encoding='utf-8') as f:
+                        f.write(result + "\n")
                 doc.close()
             except Exception as e:
                 click.echo(f"Failed to open PDF {file_path.name}: {e}", err=True)
         else:
             # Standard image
             result = process_content(client, model, final_prompt, [str(file_path)], file_path.name)
-            typst_content.append(result)
-
-    # Combine and save
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write("\n".join(typst_content))
+            with open(output_file, 'a', encoding='utf-8') as f:
+                f.write(result + "\n")
     
     click.echo(f"\nSuccessfully created {output_file}")
 
