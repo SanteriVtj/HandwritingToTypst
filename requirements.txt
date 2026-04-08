@@ -1,0 +1,5 @@
+ollama
+click
+Pillow
+requests
+pymupdf
