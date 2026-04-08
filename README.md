@@ -1,6 +1,6 @@
 # Handwriting to Typst CLI
 
-A CLI tool that uses Ollama and Vision LMMs (like `llava`) to translate a folder of handwritten notes into a single Typst document.
+A CLI tool that uses Ollama and Vision LMMs to translate a folder of handwritten notes into a single Typst document.
 
 ## Features
 - Scans a directory for images (`.png`, `.jpg`, `.jpeg`, `.webp`) and **PDF files**.
@@ -11,7 +11,7 @@ A CLI tool that uses Ollama and Vision LMMs (like `llava`) to translate a folder
 
 ## Prerequisites
 - [Ollama](https://ollama.com/) installed and running.
-- A vision-capable model pulled in Ollama (e.g., `ollama pull llava`).
+- A vision-capable model pulled in Ollama.
 - Docker (optional but recommended).
 
 ## Usage with Docker
