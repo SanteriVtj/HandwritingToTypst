@@ -99,7 +99,6 @@ def main(input_dir, output_file, model, host, prompt, list_models):
     click.echo(f"Format: {format_name}")
     click.echo(f"Found {len(file_paths)} files. Starting conversion using model '{model}'...")
     
-    first_page = True
     for file_path in file_paths:
         if file_path.suffix.lower() == pdf_extension:
             try:
@@ -112,10 +111,6 @@ def main(input_dir, output_file, model, host, prompt, list_models):
                     
                     # Open, append, and close for every page
                     with open(output_file, 'a', encoding='utf-8') as f:
-                        if is_latex and first_page:
-                            f.write("% Required dependencies for this document:\n")
-                            f.write("% \\usepackage{amsmath, amssymb, amsfonts, graphicx, float}\n\n")
-                            first_page = False
                         f.write(result + "\n")
                 doc.close()
             except Exception as e:
@@ -124,13 +119,39 @@ def main(input_dir, output_file, model, host, prompt, list_models):
             # Standard image
             result = process_content(client, model, final_prompt, [str(file_path)], file_path.name)
             with open(output_file, 'a', encoding='utf-8') as f:
-                if is_latex and first_page:
-                    f.write("% Required dependencies for this document:\n")
-                    f.write("% \\usepackage{amsmath, amssymb, amsfonts, graphicx, float}\n\n")
-                    first_page = False
                 f.write(result + "\n")
     
-    click.echo(f"\nSuccessfully created {output_file}")
+    # Post-process for LaTeX dependencies
+    if is_latex:
+        click.echo("Analyzing LaTeX dependencies...")
+        try:
+            with open(output_file, 'r', encoding='utf-8') as f:
+                full_content = f.read()
+            
+            # Ask LLM for dependencies
+            dep_prompt = (
+                "Review the following LaTeX snippets and list all the LaTeX packages required "
+                "to compile this content (e.g., amsmath, graphicx, etc.). "
+                "Return the answer as a single line of \\usepackage{...} commands, "
+                "preceded by a comment sign %."
+            )
+            
+            response = client.generate(
+                model=model,
+                prompt=f"{dep_prompt}\n\nCONTENT:\n{full_content}",
+                stream=False
+            )
+            deps = response.get('response', '').strip()
+            
+            # Prepend to file
+            header = f"% Suggested Dependencies:\n{deps}\n\n"
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(header + full_content)
+                
+        except Exception as e:
+            click.echo(f"Warning: Could not analyze LaTeX dependencies: {e}", err=True)
+
+    click.echo(f"\nSuccessfully processed and updated {output_file}")
 
 if __name__ == '__main__':
     main()
